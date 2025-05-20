@@ -2,10 +2,19 @@ from qdrant_client import QdrantClient, models
 import glob
 import os
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import openai
+from openai import AzureOpenAI
 
-qdrant_client = QdrantClient(url="http://localhost:6333")
-collection_name = "deepresearch-documents"
+# Load environment variables from .env if present
+from dotenv import load_dotenv
+load_dotenv()
+
+qdrant_client = QdrantClient(url=os.environ["QDRANT_URL"])
+collection_name = os.environ["QDRANT_COLLECTION_NAME"]
+azrue_client = AzureOpenAI(
+    api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+    azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+    api_key=os.environ["AZURE_OPENAI_API_KEY"]
+)
 
 def initialize_collection():
     """Initializes the Qdrant collection."""
@@ -14,7 +23,7 @@ def initialize_collection():
         qdrant_client.create_collection(
             collection_name=collection_name,
             vectors_config=models.VectorParams(
-                size=1536,  # Size of the vector
+                size=3072,  # Size of the vector
                 distance=models.Distance.COSINE,  # Distance metric
             )
         )
@@ -23,7 +32,7 @@ def split_file_to_chunks(file_path, chunk_size=1000, chunk_overlap=100):
     """Splits a file into chunks of specified size."""
     with open(file_path, 'rb') as f:
         #read all file text
-        file_text = f.read()
+        file_text = f.read().decode("utf-8")
         # Split the text into chunks
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -34,18 +43,15 @@ def split_file_to_chunks(file_path, chunk_size=1000, chunk_overlap=100):
     
 def embed_chunk(chunk):
     """Embeds a chunk of text using Azure OpenAI embedding."""
-    response = openai.Embedding.create(
-        input=chunk,
-        engine="text-embedding-3-large",  # Replace with your deployment name
-        api_type="azure",
-        api_base="https://tima-openai2.openai.azure.com/",  # Replace with your endpoint
-        api_version="2023-05-15",
-        api_key="0ca5fb4a37704500a22fff6e68c95bda"  # Replace with your API key or use environment variable
-    )
-    return response['data'][0]['embedding']
+
+    response = azrue_client.embeddings.create(input=chunk, 
+                                              model=os.environ["AZURE_OPENAI_EMBEDDING_MODEL"])
+
+    return response.data[0].embedding
 
 def store_document_in_qdrant(chunks):
     """Stores the document chunks in Qdrant."""
+    id_counter = 0
     for chunk in chunks:
         # Embed the chunk
         embedding = embed_chunk(chunk)
@@ -54,12 +60,14 @@ def store_document_in_qdrant(chunks):
             collection_name=collection_name,
             points=[
                 models.PointStruct(
-                    id=chunk,  # Use a unique ID for each chunk
+                    id=id_counter,  # Use a unique ID for each chunk
                     vector=embedding,
                     payload={"text": chunk}  # Store the text as payload
                 )
             ]
         )
+
+        id_counter += 1
 
 def main():
     initialize_collection()
