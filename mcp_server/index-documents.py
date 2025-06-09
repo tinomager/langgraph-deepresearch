@@ -71,7 +71,7 @@ def store_document_in_qdrant(chunks):
 
 def main():
     initialize_collection()
-    subfolder = "docs"
+    subfolder = os.environ.get("DOCS_SUBFOLDER", "docs")
     file_names = glob.glob(os.path.join(subfolder, "**", "*.*"), recursive=True)
 
     all_chunks = []
