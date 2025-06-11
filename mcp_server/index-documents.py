@@ -6,11 +6,12 @@ from openai import AzureOpenAI
 
 # Load environment variables from .env if present
 from dotenv import load_dotenv
+from model import ChunkModel
 load_dotenv()
 
 qdrant_client = QdrantClient(url=os.environ["QDRANT_URL"])
 collection_name = os.environ["QDRANT_COLLECTION_NAME"]
-azrue_client = AzureOpenAI(
+azure_client = AzureOpenAI(
     api_version=os.environ["AZURE_OPENAI_API_VERSION"],
     azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
     api_key=os.environ["AZURE_OPENAI_API_KEY"]
@@ -39,12 +40,18 @@ def split_file_to_chunks(file_path, chunk_size=1000, chunk_overlap=100):
             chunk_overlap=chunk_overlap
         )
         chunks = text_splitter.split_text(file_text)
+        filename = os.path.basename(file_path)
+        # Map each chunk to a ChunkModel instance with chunk number
+        chunks = [
+            ChunkModel(content=chunk, filename=filename, chunknumber=i)
+            for i, chunk in enumerate(chunks)
+        ]
         return chunks
     
 def embed_chunk(chunk):
     """Embeds a chunk of text using Azure OpenAI embedding."""
 
-    response = azrue_client.embeddings.create(input=chunk, 
+    response = azure_client.embeddings.create(input=chunk.content, 
                                               model=os.environ["AZURE_OPENAI_EMBEDDING_MODEL"])
 
     return response.data[0].embedding
@@ -62,7 +69,11 @@ def store_document_in_qdrant(chunks):
                 models.PointStruct(
                     id=id_counter,  # Use a unique ID for each chunk
                     vector=embedding,
-                    payload={"text": chunk}  # Store the text as payload
+                    payload={
+                        "content": chunk.content,
+                        "filename": chunk.filename,
+                        "chunknumber": chunk.chunknumber
+                    }
                 )
             ]
         )

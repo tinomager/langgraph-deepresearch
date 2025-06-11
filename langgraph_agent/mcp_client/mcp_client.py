@@ -35,6 +35,17 @@ class MCPClient:
             return result_text
         else:
             raise Exception(f"Error processing query: {query}")
+        
+    async def process_query_with_context(self, query: str, num_docs: int = 5):
+        tool_args = {"query": query, "num_docs": num_docs}
+        tool_name = "get_rag_data_with_context"  
+        result = await self.session.call_tool(
+            tool_name, tool_args
+        )
+        if not result.isError:
+            return result
+        else:
+            raise Exception(f"Error processing query: {query}")
 
     async def cleanup(self):
         """Cleanup resources."""

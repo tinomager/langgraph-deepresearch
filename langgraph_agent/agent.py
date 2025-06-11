@@ -31,14 +31,13 @@ load_dotenv()
 
 import os
 
-# Azure OpenAI Konfiguration
-api_key = os.environ["AZURE_OPENAI_API_KEY"]  # Dein Azure OpenAI API-Schlüssel        
-endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]  # Dein Azure OpenAI Endpunkt (z.B. https://<your-resource-name>.openai.azure.com/)
-deployment_name = os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"]  # Dein Modell-Deployment-Name (z.B. gpt-35-turbo)                
-# Client erstellen
+
+api_key = os.environ["AZURE_OPENAI_API_KEY"]  
+endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]  
+deployment_name = os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"]             
 client = AzureOpenAI(
     api_key=api_key,
-    api_version=os.environ["AZURE_OPENAI_API_VERSION"],  # oder die von dir genutzte aktuelle Version
+    api_version=os.environ["AZURE_OPENAI_API_VERSION"], 
     azure_endpoint=endpoint,
 )
 max_research_loops = int(os.environ["MAX_RESEARCH_LOOPS"])

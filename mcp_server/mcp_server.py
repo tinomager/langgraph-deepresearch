@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from openai import AzureOpenAI
+from model import ChunkModel
 
 
 # Create an MCP server
@@ -20,31 +21,42 @@ azrue_client = AzureOpenAI(
     api_key=os.environ["AZURE_OPENAI_API_KEY"]
 )
 
-
-# Add an addition tool
-@mcp.tool()
-def add(a: int, b: int) -> int:
-    """Add two numbers"""
-    return a + b
-
-
-# Add a dynamic greeting resource
-@mcp.resource("greeting://{name}")
-def get_greeting(name: str) -> str:
-    """Get a personalized greeting"""
-    return f"Hello, {name}!"
-
-@mcp.tool()
-def get_time_with_prefix():
-    """Get the current date and time."""
-    return str(datetime.datetime.now())
-
-# Get data from BWI document
+# Get data from internal documents
 @mcp.tool()
 def get_rag_data(query: str, num_docs: int = 5) -> str:
-    """Get data from document knowledge based on the query"""
+    """Get data from document knowledge based on the user query"""
     print(f"Received MCP query at tool get_rag_data: {query}")
 
+    results = search_documents(query, num_docs)
+    combined_text = "\n\n".join([point.payload.get("content", "") for point in results.points])
+    print(f"Query: {query}\n\nResults:\n\n{combined_text}")
+
+    return combined_text
+
+@mcp.tool()
+def get_rag_data_with_context(query: str, num_docs: int = 5) -> str:
+    """Get data from document knowledge based on the user query"""
+    print(f"Received MCP query at tool get_rag_data: {query}")
+
+    results = search_documents(query, num_docs)
+    #results = [
+    #        ChunkModel(content=point.payload.get("content", ""), filename=point.payload.get("filename", ""), chunknumber=point.payload.get("chunknumber", ""))
+    #        for point in results.points
+    #    ]
+    #print(f"Query: {query}\n\nResults:\n\n{combined_text}")
+
+    result_json = [
+        { 
+            "content": point.payload.get("content", ""),
+            "filename": point.payload.get("filename", ""),
+            "chunknumber": point.payload.get("chunknumber", ""),
+            "score": point.score 
+        }
+        for point in results.points
+    ]
+    return result_json
+    
+def search_documents(query: str, num_docs: int = 5):
     embedding_response = azrue_client.embeddings.create(
         input=query,
         model=os.environ["AZURE_OPENAI_EMBEDDING_MODEL"]
@@ -56,20 +68,8 @@ def get_rag_data(query: str, num_docs: int = 5) -> str:
         limit=num_docs,
         with_payload=True
     )
+    return results
 
-    # Extract the text from the results
-    combined_text = "\n\n".join([point.payload.get("text", "") for point in results.points])
-    print(f"Query: {query}\n\nResults:\n\n{combined_text}")
-
-    return combined_text
-
-@mcp.tool()
-async def fetch_weather(city: str) -> str:
-    """Fetch current weather for a city"""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"https://api.weather.com/{city}")
-        return response.text
-    
 if __name__ == "__main__":
     # Check if Qdrant is reachable before starting the server
     try:
