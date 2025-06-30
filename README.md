@@ -10,4 +10,4 @@ See [`README.md`](mcp_server/README.md) of the MCP server for the details on how
 
 ## Langgraph Agent
 
-See [`README.md`](mcp_server/README.md) of the Langgraph agent for the details on how to run the agent.
+See [`README.md`](langgraph_agent/README.md) of the Langgraph agent for the details on how to run the agent.
