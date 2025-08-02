@@ -24,17 +24,19 @@ class MCPClient:
 
     async def process_query(self, query: str, num_docs: int = 5):
         tool_args = {"query": query, "num_docs": num_docs}
-        tool_name = "get_rag_data"  
-        result = await self.session.call_tool(
-            tool_name, tool_args
-        )
-        if not result.isError:
-            result_text=result.content[0].text
-            #print(f"Processed query: {query}")
-            #print(f"Result: {result_text}")
-            return result_text
-        else:
-            raise Exception(f"Error processing query: {query}")
+        tool_name = "get_rag_data"
+        try:
+            result = await self.session.call_tool(tool_name, tool_args)
+            if not result.isError:
+                result_text = result.content[0].text
+                return result_text
+            else:
+                print(f"Error processing query: {query}\nError: {result.error if hasattr(result, 'error') else result}")
+                raise Exception(f"Error processing query: {query}")
+        except Exception as e:
+            import traceback
+            print(f"Exception in process_query: {e}\nTraceback:\n{traceback.format_exc()}")
+            raise
         
     async def process_query_with_context(self, query: str, num_docs: int = 5):
         tool_args = {"query": query, "num_docs": num_docs}
